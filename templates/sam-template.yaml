@@ -1,0 +1,51 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Intelligent Document Processing with AWS Textract and Comprehend
+
+Resources:
+  ProcessingBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: intelligent-document-processing
+
+  TextractComprehendFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/lambda/textract_processor/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      MemorySize: 256
+      Timeout: 30
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref ProcessingBucket
+        - AWSLambdaBasicExecutionRole
+        - Statement:
+            Effect: Allow
+            Action:
+              - "textract:AnalyzeDocument"
+              - "comprehend:DetectEntities"
+            Resource: "*"
+      Environment:
+        Variables:
+          S3_BUCKET_NAME: !Ref ProcessingBucket
+      Events:
+        S3Trigger:
+          Type: S3
+          Properties:
+            Bucket: !Ref ProcessingBucket
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: .pdf
+
+Outputs:
+  ProcessingBucketName:
+    Value: !Ref ProcessingBucket
+    Description: S3 bucket for document uploads
+
+  LambdaFunctionName:
+    Value: !Ref TextractComprehendFunction
+    Description: Name of the Lambda function
